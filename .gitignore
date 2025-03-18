@@ -1,0 +1,12 @@
+# Ignore SketchUp temporary files
+*.skp
+*.skb
+*.log
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore user-specific configs
+*.bak
+*.tmp
