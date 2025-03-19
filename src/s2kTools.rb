@@ -12,7 +12,7 @@ module Plugins
   module S2kTools
     ### CONSTANTS ### ------------------------------------------------------------
     PLUGIN_NAME     = 's2kTools'.freeze
-    PLUGIN_VERSION  = '1.0.2'.freeze
+    PLUGIN_VERSION  = '1.1.2'.freeze
 
     # Resource paths
     file = __FILE__.dup

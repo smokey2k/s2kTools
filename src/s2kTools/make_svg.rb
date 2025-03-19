@@ -32,7 +32,16 @@ module Plugins
 
       instance.transformation = new_transformation
 
-      UI.messagebox("The base point has been set to the origin.")
+      # ✅ Move the camera to the selected scene if available
+      if @@selected_scene
+        pages = model.pages
+        selected_page = pages[@@selected_scene]
+        if selected_page
+          pages.selected_page = selected_page
+        else
+          UI.messagebox("Selected scene not found. Component moved to origin.")
+        end
+      end
     end
 
     #------------------------------
