@@ -104,16 +104,26 @@ module Plugins
         line_weight: 0.3,
       }
 
-      check_export = lambda {
+      attempt = 0
+
+      UI.start_timer(0.5, false) do
         success = model.export(file, options)
         if success
           UI.messagebox("Model exported as '#{file}'.")
+        elsif attempt < 1
+          attempt += 1
+          UI.start_timer(0.5, false) do
+            success = model.export(file, options)
+            if success
+              UI.messagebox("Model exported as '#{file}' (after retry).")
+            else
+              UI.messagebox("Export failed after retry. Try cleaning the component.")
+            end
+          end
         else
-          UI.start_timer(0.5, false) { check_export.call }
+          UI.messagebox("Export failed. Try cleaning the component.")
         end
-      }
-
-      check_export.call
+      end
     end
 
     #------------------------------
