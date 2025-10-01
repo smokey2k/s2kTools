@@ -1,0 +1,66 @@
+module Plugins
+  module S2kTools
+
+    def self.cm(val)
+      val.to_f / 2.54
+    end
+
+# Segédfüggvény – létrehoz egy LIST attribútumot
+def self.add_dc_list(instance, base, options, default = nil, type = :string, display_label = nil)
+  dict = "dynamic_attributes"
+  default ||= options.split('&')[1].split('=').last rescue ""
+
+  defn = instance.definition.attribute_dictionary(dict, true)
+  defn["_#{base}_access"]        = "LIST"
+  defn["_#{base}_label"]         = base
+  defn["_#{base}_formlabel"]     = display_label || base   # ha nincs megadva, ugyanaz mint a base
+  defn["_#{base}_units"]         = (type == :float ? "FLOAT" : "STRING")
+  defn["_#{base}_formulaunits"]  = (type == :float ? "FLOAT" : "STRING")
+  defn["_#{base}_options"]       = options
+  defn["_#{base}_formula"]       = nil
+
+  inst = instance.attribute_dictionary(dict, true)
+  inst[base]           = default
+  inst["#{base}_formula"] = nil
+end
+
+
+  def self.set_attribute_main
+    model = Sketchup.active_model
+    selection = model.selection
+    if selection.empty?
+      UI.messagebox("Please select component.")
+      return
+    end
+    instance = selection.first
+    unless instance.is_a?(Sketchup::ComponentInstance)
+      UI.messagebox("Please select a valid component instance.")
+      return
+    end
+    dict = "dynamic_attributes"
+    
+    
+    #instance.set_attribute(dict, "front_thickness", 1.6, cm)
+    instance.set_attribute(dict, "width", cm(1.6))
+
+    add_dc_list(
+      instance,
+      "direction",
+      "&Bal=0&Jobb=1&",
+      "0",
+      :float,
+      "Nyitási irány"
+    )
+
+    # Frissítjük a DC-t
+    if defined?($dc_observers) && $dc_observers.respond_to?(:get_latest_class)
+      $dc_observers.get_latest_class.redraw_with_undo(model.active_entities, [instance]) rescue nil
+    end
+  end
+
+  def self.set_attribute_sub
+  end
+
+
+  end
+end

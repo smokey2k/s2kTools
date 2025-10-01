@@ -35,6 +35,23 @@ module Plugins::S2kTools
     cmd_fix_axes.tooltip = "Fix Axes"
     toolbar.add_item cmd_fix_axes
 
+    cmd_setattribute_main = UI::Command.new("Set Attribute Main") {
+      Plugins::S2kTools.set_attribute_main
+    }
+    cmd_setattribute_main.small_icon = File.join(icon_dir, "setattributes_22.png")
+    cmd_setattribute_main.large_icon = File.join(icon_dir, "setattributes_32.png")
+    cmd_setattribute_main.tooltip = "Set Attribute Main"
+    toolbar.add_item cmd_setattribute_main
+
+    cmd_setattribute_sub = UI::Command.new("Set Attribute Sub") {
+      Plugins::S2kTools.set_attribute_sub
+    }
+    cmd_setattribute_sub.small_icon = File.join(icon_dir, "setattributes_2_22.png")
+    cmd_setattribute_sub.large_icon = File.join(icon_dir, "setattributes_2_32.png")
+    cmd_setattribute_sub.tooltip = "Set Attribute Sub"
+    toolbar.add_item cmd_setattribute_sub
+
+
     toolbar.show
   end
 end
