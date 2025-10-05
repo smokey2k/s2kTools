@@ -1,0 +1,65 @@
+- main (component)
+    - footer (component)
+        - footer lower (component)
+        - footer upper (component)
+    - fronts (component)
+        - doors .....(groups)
+        - handles .....(components)
+    - drawers (component)
+        - deep drawers (component)
+        - shallow drawers (component)
+        - drawer slides (component)
+            - inner (component)
+            - outer (component)
+    - side panels .....(groups)
+    - stretchers .....(groups)
+    - accessories .....(groups)
+    - shelves .....(groups)
+    - top panel .....(group)
+    - bottom panel .....(group)
+    - back panel .....(group)
+        
+Attributes:
+
+direction:
+    member: main component
+    type: list
+    access: user
+    display label: "Nyitási irány"
+    return: float
+    list option: [['Bal',0], ['Jobb',1]]
+
+front_thickness:
+    member: main component
+    type: textbox
+    access: user
+    display label: "Bútorlap vastagság"
+    return: centimeters
+    
+front_type:
+    member: main component
+    type: list
+    access: user
+    display label: "Front típus"
+    return: float
+    list option: ['0 Nincs',0], ['1 Alíz',1], ['2 Anikó/Dorina',2],['3 Flóra',3], ['4 Gréta',4], ['5 Helga',5], ['6 Orsi',6]
+
+handle_type:
+    member: main component
+    type: list
+    access: user
+    display label: "Fogantyú típus"
+    return: float
+    list option: ['0 Nincs',0], ['180 cm',1], ['135 cm',2],['130 cm',3]
+
+handle_offset:
+    member: main component
+    type: textbox
+    access: user
+    display label: "Bútorlap vastagság"
+    return: centimeters
+
+
+
+= IF(Footer_Plastic!footer_offset=10, -10, -15)
+=IF(Parent!handle_type=1,FALSE,True)
