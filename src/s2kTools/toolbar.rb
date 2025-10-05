@@ -46,6 +46,7 @@ module Plugins::S2kTools
     cmd_setattribute_sub = UI::Command.new("Set Attribute Sub") {
       Plugins::S2kTools.set_attribute_sub
     }
+    cmd_setattribute_sub.status_bar_text = 'Copies size from source to target using DC LenX/LenY/LenZ'
     cmd_setattribute_sub.small_icon = File.join(icon_dir, "setattributes_2_22.png")
     cmd_setattribute_sub.large_icon = File.join(icon_dir, "setattributes_2_32.png")
     cmd_setattribute_sub.tooltip = "Set Attribute Sub"
