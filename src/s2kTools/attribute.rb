@@ -8,19 +8,18 @@ module Plugins
     def self.set_model_units_to_cm
       m = Sketchup.active_model
       u = m.options["UnitsOptions"]
-      u["LengthUnit"]      = 3   # 0=in, 1=ft, 2=mm, 3=cm, 4=m
+      u["LengthUnit"]      = 3   # 0=in,1=ft,2=mm,3=cm,4=m
       u["LengthFormat"]    = 0   # Decimal
       u["LengthPrecision"] = 2
     end
 
-    # -- segéd: ugyanaz a meta a definition-ön és az instance-on --
+    # -- segéd: meta kulcs mindkét szinten (definition + instance) --
     def self.set_meta_both(instance, key, value)
       instance.definition.attribute_dictionary(DICT, true)[key] = value
       instance.attribute_dictionary(DICT, true)[key]            = value
     end
 
     # -- LIST helper (&Label=Value&...) --
-    # pairs: [ ['0 Nincs',0], ['1 Alíz',1], ... ]
     def self.add_dc_list(instance, name, pairs, default_value=nil, value_type=:string, display_label=nil)
       opts = pairs.map { |lab,val| "&#{lab}=#{val}&" }.join
       set_meta_both(instance, "_#{name}_access",       "LIST")
@@ -44,17 +43,15 @@ module Plugins
       set_meta_both(instance, "_#{name}_displayunits", "CENTIMETERS")
       set_meta_both(instance, "_#{name}_access",       "TEXTBOX")
       set_meta_both(instance, "_#{name}_formulaunits", "CENTIMETERS")
-      instance.attribute_dictionary(DICT, true)[name] = cm(value_cm) # érték inch-ben
+      instance.attribute_dictionary(DICT, true)[name] = cm(value_cm) # inch-ben tároljuk
     end
 
-    # -- Képletes számmező (FORMULA) cm-ben --
-    # formula_without_equals: ne tegyél elé '='-t (a DC UI hozzáadja)
-    # show_in_options: false -> teljesen rejtve a Component Options-ban
+    # -- Képlet (FORMULA) cm-ben --
     def self.add_dc_formula_cm(instance, name, formula_without_equals, display_label=nil, show_in_options: false)
       set_meta_both(instance, "_#{name}_label",         name)
       set_meta_both(instance, "_#{name}_units",         "CENTIMETERS")
       set_meta_both(instance, "_#{name}_displayunits",  "CENTIMETERS")
-      set_meta_both(instance, "_#{name}_formula",       formula_without_equals.to_s.strip)
+      set_meta_both(instance, "_#{name}_formula",       formula_without_equals.to_s.strip) # NINCS '='
       set_meta_both(instance, "_#{name}_formulaunits",  "CENTIMETERS")
 
       if show_in_options
@@ -70,7 +67,6 @@ module Plugins
     end
 
     # -- Material attribútum képlettel (STRING) --
-    # formula_without_equals pl.: 'handle_material' vagy 'Parent!handle_material'
     def self.add_dc_material_formula(instance, formula_without_equals, show_in_options: false, display_label: nil)
       set_meta_both(instance, "_material_label",        "material")
       set_meta_both(instance, "_material_units",        "STRING")
@@ -89,102 +85,7 @@ module Plugins
       instance.attribute_dictionary(DICT, true)["material"] = ""
     end
 
-    # ----------------------- MÉRET/IRÁNY MÁSOLÁS -----------------------------
-
-    # Stabil kiválasztási sorrend: első = CÉL, utolsó = FORRÁS
-    @sel_order ||= []
-    def self.sel_added(ent)
-      return unless ent.is_a?(Sketchup::Group) || ent.is_a?(Sketchup::ComponentInstance)
-      @sel_order.delete(ent)
-      @sel_order << ent
-    end
-    def self.reset_sel_order
-      @sel_order = []
-    end
-
-    class SelObs < Sketchup::SelectionObserver
-      def onSelectionAdded(selection, entity)
-        Plugins::S2kTools.sel_added(entity)
-      end
-      def onSelectionCleared(selection)
-        Plugins::S2kTools.reset_sel_order
-      end
-    end
-
-    def self.ensure_selection_observer
-      return if @sel_obs_attached
-      Sketchup.active_model.selection.add_observer(SelObs.new)
-      @sel_obs_attached = true
-    end
-
-    # Lokális (entitás-tengely) méret számítása
-    def self.local_size(ent)
-      t_inv = ent.transformation.inverse
-      bb    = ent.bounds
-      # 8 sarok lokális térben
-      pts = []
-      corners = [
-        Geom::Point3d.new(bb.min.x, bb.min.y, bb.min.z),
-        Geom::Point3d.new(bb.min.x, bb.min.y, bb.max.z),
-        Geom::Point3d.new(bb.min.x, bb.max.y, bb.min.z),
-        Geom::Point3d.new(bb.min.x, bb.max.y, bb.max.z),
-        Geom::Point3d.new(bb.max.x, bb.min.y, bb.min.z),
-        Geom::Point3d.new(bb.max.x, bb.min.y, bb.max.z),
-        Geom::Point3d.new(bb.max.x, bb.max.y, bb.min.z),
-        Geom::Point3d.new(bb.max.x, bb.max.y, bb.max.z)
-      ]
-      corners.each { |p| pts << p.transform(t_inv) }
-      xs = pts.map(&:x); ys = pts.map(&:y); zs = pts.map(&:z)
-      [xs.max - xs.min, ys.max - ys.min, zs.max - zs.min]
-    end
-
-    # Orientáció egyeztesítése: a CÉL helye marad, tengelyei a FORRÁSÉ lesznek
-    def self.align_orientation!(target, source)
-      to = target.transformation.origin
-      tx = source.transformation.xaxis
-      ty = source.transformation.yaxis
-      tz = source.transformation.zaxis
-      target.transformation = Geom::Transformation.axes(to, tx, ty, tz)
-    end
-
-    # Lokális skálázás ismételhetően (T * S * T^-1)
-    def self.scale_to_local_size!(target, dst_x, dst_y, dst_z)
-      cur_x, cur_y, cur_z = local_size(target)
-      sx = (cur_x.abs < 1e-9) ? 1.0 : (dst_x / cur_x)
-      sy = (cur_y.abs < 1e-9) ? 1.0 : (dst_y / cur_y)
-      sz = (cur_z.abs < 1e-9) ? 1.0 : (dst_z / cur_z)
-      t  = target.transformation
-      s  = Geom::Transformation.scaling(ORIGIN, sx, sy, sz)
-      tr = t * s * t.inverse
-      target.transform!(tr)
-    end
-
-    # Parancs: az első kijelölt = CÉL, az utolsó = FORRÁS
-    def self.set_attribute_sub
-      m = Sketchup.active_model
-      ensure_selection_observer
-
-      usable = @sel_order.select { |e|
-        m.selection.include?(e) && (e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance))
-      }
-      if usable.length < 2
-        UI.messagebox("Kijelölés sorrendje számít:\n1) jelöld a CÉLT, 2) SHIFT+klikk a FORRÁSRA, majd futtasd a parancsot.")
-        return
-      end
-
-      target = usable.first
-      source = usable.last
-
-      sx, sy, sz = local_size(source)
-
-      m.start_operation("Második mérete/irány → elsőre", true)
-      align_orientation!(target, source)
-      scale_to_local_size!(target, sx, sy, sz)
-      m.commit_operation
-    end
-
-    # ----------------------- DC DEMÓ (maradt, ahogy kértél) -------------------
-
+    # ===== „Fő” attribútum-felíró parancs =====
     def self.set_attribute_main
       m = Sketchup.active_model
       inst = m.selection.first
@@ -216,11 +117,7 @@ module Plugins
       add_dc_list(inst, "handle_material", handle_material_pairs, '', :string, "Textúra")
 
       add_dc_number_cm(inst, "front_thickness", 50.0, "Bútorlap vastagság")
-
-      # Material a listából (rejtve az Options-ban)
       add_dc_material_formula(inst, 'handle_material', show_in_options: false)
-
-      # Képlet cm-ben, rejtve az Options-ból
       add_dc_formula_cm(
         inst,
         "handleoffset",
@@ -230,10 +127,135 @@ module Plugins
       )
 
       m.commit_operation
-      # Megjegyzés: ha a Component Options már nyitva volt, zárd-nyisd újra a frissítéshez.
     end
 
-    # biztosítsuk, hogy a figyelő aktív legyen
-    ensure_selection_observer if defined?(Sketchup)
+    # =================================================================
+    # ==================  MATCH SIZE – DC-BARÁT TOOL  =================
+    # =================================================================
+
+    # -- DC szűrők/segédek --
+    def self.dc_dict(ent) ent.attribute_dictionary(DICT, false) end
+
+    def self.dc_buildable?(ent)
+      ad = dc_dict(ent)
+      ad && ad['Class'].to_s.strip.downcase == 'buildable'
+    end
+
+    def self.dc_has_len?(ent)
+      ad = dc_dict(ent)
+      ad && ad.key?('LenX') && ad.key?('LenY') && ad.key?('LenZ')
+    end
+
+    # Forrás méret lekérdezése:
+    #  - ha DC buildable + van LenX/Y/Z → azokat (inch)
+    #  - különben világ-bbox méret
+    def self.source_size_in(ent)
+      if dc_buildable?(ent) && dc_has_len?(ent)
+        ad = dc_dict(ent)
+        [ad['LenX'].to_f, ad['LenY'].to_f, ad['LenZ'].to_f]
+      else
+        bb = ent.bounds
+        v  = bb.max - bb.min
+        [v.x.to_f, v.y.to_f, v.z.to_f]
+      end
+    end
+
+    # Cél beállítása:
+    #  - ha DC buildable + van LenX/Y/Z → attribútumokat írjuk és redraw
+    #  - különben geometria-skálázás
+    def self.apply_size_to_target!(target, want_x, want_y, want_z)
+      if dc_buildable?(target) && dc_has_len?(target)
+        ad = target.attribute_dictionary(DICT, true)
+        ad['LenX'] = want_x
+        ad['LenY'] = want_y
+        ad['LenZ'] = want_z
+
+        # DC redraw (ha plugin jelen van)
+        if defined?($dc_observers) && $dc_observers.respond_to?(:get_latest_class)
+          $dc_observers.get_latest_class.redraw_with_undo(
+            Sketchup.active_model.active_entities, [target]
+          ) rescue nil
+        end
+      else
+        # bbox-min pivotos skálázás (világ tengelyek)
+        cur_x, cur_y, cur_z = source_size_in(target)
+        sx = cur_x.zero? ? 1.0 : (want_x / cur_x)
+        sy = cur_y.zero? ? 1.0 : (want_y / cur_y)
+        sz = cur_z.zero? ? 1.0 : (want_z / cur_z)
+        pivot = target.bounds.min
+        target.transform!(Geom::Transformation.scaling(pivot, sx, sy, sz))
+      end
+    end
+
+    # Opcionális: tájolás egyeztetése csak akkor, ha egyik sem DC-buildable
+    def self.reorient_like_if_safe!(target, source)
+      return if dc_buildable?(target) || dc_buildable?(source)
+      pos  = target.transformation.origin
+      tsrc = source.transformation
+      taxis = Geom::Transformation.axes(pos, tsrc.xaxis, tsrc.yaxis, tsrc.zaxis)
+      target.transform!(target.transformation.inverse * taxis)
+    end
+
+    class MatchSizeTool
+      def activate
+        @state  = :pick_target
+        @target = @source = nil
+        Sketchup.status_text = "Match Size: kattints a CÉL elemre (Group/Component)."
+      end
+
+      def deactivate(view)
+        Sketchup.status_text = ""
+      end
+
+      def onLButtonDown(flags, x, y, view)
+        ph = view.pick_helper
+        ph.do_pick(x, y)
+        ent = ph.best_picked
+        ent = ent.parent if ent.is_a?(Sketchup::ComponentDefinition)
+
+        unless ent.is_a?(Sketchup::Group) || ent.is_a?(Sketchup::ComponentInstance)
+          UI.beep
+          return
+        end
+
+        case @state
+        when :pick_target
+          @target = ent
+          @state  = :pick_source
+          Sketchup.status_text = "Match Size: most kattints a FORRÁS elemre."
+        when :pick_source
+          if ent == @target
+            UI.messagebox("A forrás nem lehet ugyanaz, mint a cél.")
+            reset
+            return
+          end
+          @source = ent
+          perform(view)
+          view.model.tools.pop_tool # egy lövés – kilépünk
+        end
+      end
+
+      def perform(view)
+        m = view.model
+        m.start_operation("Match Size (forrás → cél)", true)
+
+        sx, sy, sz = Plugins::S2kTools.source_size_in(@source)
+        Plugins::S2kTools.reorient_like_if_safe!(@target, @source)
+        Plugins::S2kTools.apply_size_to_target!(@target, sx, sy, sz)
+
+        m.commit_operation
+      end
+
+      def reset
+        @state = :pick_target
+        @target = @source = nil
+        Sketchup.status_text = "Match Size: kattints a CÉL elemre."
+      end
+    end
+
+    # Toolbarból hívd:
+    def self.start_match_size_tool
+      Sketchup.active_model.tools.push_tool(MatchSizeTool.new)
+    end
   end
 end
