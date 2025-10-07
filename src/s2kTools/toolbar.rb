@@ -46,14 +46,14 @@ module Plugins::S2kTools
     cmd_setattribute_main.tooltip    = 'Set Attribute Main'
     toolbar.add_item cmd_setattribute_main
 
-    cmd_start_match_size_tool = UI::Command.new('Match Size Tool') {
+    cmd_match = UI::Command.new("Match Size Tool") {
       Plugins::S2kTools.start_match_size_tool
     }
-    cmd_start_match_size_tool.status_bar_text = 'Match Size Tool'
-    cmd_start_match_size_tool.small_icon      = File.join(icon_dir, 'setattributes_2_22.png')
-    cmd_start_match_size_tool.large_icon      = File.join(icon_dir, 'setattributes_2_32.png')
-    cmd_start_match_size_tool.tooltip         = 'Match Size Tool'
-    toolbar.add_item cmd_start_match_size_tool
+    cmd_match.small_icon     = File.join(icon_dir, "setattributes_2_22.png")
+    cmd_match.large_icon     = File.join(icon_dir, "setattributes_2_32.png")
+    cmd_match.tooltip        = "Match Size Tool (target → source)"
+    cmd_match.status_bar_text= "Match Size: kattints targetre, majd forrásra."
+    toolbar.add_item cmd_match
 
     toolbar.show
   end
